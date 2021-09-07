@@ -5,12 +5,20 @@ using UnityEngine;
 public class PlayerControllerX : MonoBehaviour
 {
     private Rigidbody playerRb;
-    private float speed = 500;
     private GameObject focalPoint;
+    public ParticleSystem smokeTurbo;
+
+    public bool turboInput;
+    public float verticalInput;
+
+    private float speed = 500f;
+    private float turboSpeed = 800f;
+    public bool hasTurbo = false;
+
 
     public bool hasPowerup;
     public GameObject powerupIndicator;
-    public int powerUpDuration = 5;
+    public int powerUpDuration = 7;
 
     private float normalStrength = 10; // how hard to hit enemy without powerup
     private float powerupStrength = 25; // how hard to hit enemy with powerup
@@ -23,15 +31,33 @@ public class PlayerControllerX : MonoBehaviour
 
     void Update()
     {
-        // Add force to player in direction of the focal point (and camera)
-        float verticalInput = Input.GetAxis("Vertical");
-        playerRb.AddForce(focalPoint.transform.forward * verticalInput * speed * Time.deltaTime); 
+        InputRead();
+        
+        if (!turboInput)
+        {
+            playerRb.AddForce(focalPoint.transform.forward * verticalInput * speed * Time.deltaTime);
+            smokeTurbo.Stop();
+        }
+        else
+        {
+            if (smokeTurbo.isStopped)
+            {
+                smokeTurbo.Play();
+            }
+
+            playerRb.AddForce(focalPoint.transform.forward * verticalInput * turboSpeed * Time.deltaTime);            
+        }
 
         // Set powerup indicator position to beneath player
         powerupIndicator.transform.position = transform.position + new Vector3(0, -0.6f, 0);
-
     }
 
+    void InputRead()
+    {
+        verticalInput = Input.GetAxis("Vertical");
+        turboInput = Input.GetButton("Jump");
+    }
+    
     // If Player collides with powerup, activate powerup
     private void OnTriggerEnter(Collider other)
     {
@@ -40,6 +66,7 @@ public class PlayerControllerX : MonoBehaviour
             Destroy(other.gameObject);
             hasPowerup = true;
             powerupIndicator.SetActive(true);
+            StartCoroutine(PowerupCooldown());
         }
     }
 
@@ -57,7 +84,8 @@ public class PlayerControllerX : MonoBehaviour
         if (other.gameObject.CompareTag("Enemy"))
         {
             Rigidbody enemyRigidbody = other.gameObject.GetComponent<Rigidbody>();
-            Vector3 awayFromPlayer =  transform.position - other.gameObject.transform.position; 
+
+            Vector3 awayFromPlayer =  other.gameObject.transform.position - transform.position; 
            
             if (hasPowerup) // if have powerup hit enemy with powerup force
             {
